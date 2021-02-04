@@ -63,9 +63,10 @@ ui <- fluidPage(theme = shinytheme("united"),
                        inputId = "submit_loc",
                        label = "Submit"
                    ),
-                   p(HTML("<p><p><p><p style='font-size:11px'>Developed by <a href='mailto:william.aue@parallaxresearch.org'>Dr. William Aue</a> 
+                   p(HTML("<p style='font-size:11px'>Developed by <a href='mailto:william.aue@parallaxresearch.org'>Dr. William Aue</a> 
                    with support provided by Wright State University through a collaborative agreement awarded to Dr. Ion Juvina by the 
                    Defense Advanced Research Projects Agency (DARPA) under agreement number HR00111990066.</p>")),
+                   p(HTML("<p style='font-size:11px'>The source code for this Shiny application is available on <a href='https://github.com/williamaue/evaluating-prediction-accuracy'>GitHub</a>.</p>")),
                    )
                ),
         column(6,
