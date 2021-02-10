@@ -25,7 +25,7 @@ ui <- fluidPage(theme = shinytheme("united"),
                wellPanel(
                    h4("File Inputs"),
                    p(HTML("Select the input files. Each file should be a .CSV file containing a column with a subject number, 
-                   named <em>subject</em>, and their corresponding prediction, named <em>prediction</em>.")),
+                   named <em>subj</em>, and their corresponding prediction, named <em>prediction</em>.")),
                    p("When you have uploaded the necessary files, press 'Submit' to run the analysis. Clicking on the 'CSV' button under the output table will download the results to a CSV file."),
                    p("To see a demonstration of the output table, click the 'demonstration' box and click 'Submit'."),
                    fileInput("ground_truth", "Choose Ground-Truth File",
