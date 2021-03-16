@@ -33,32 +33,11 @@ ui <- fluidPage(theme = shinytheme("united"),
                                  "text/csv",
                                  "text/comma-separated-values,text/plain",
                                  ".csv")),
-                   fileInput("team1_pred", "Choose predictions file for Team 1",
+                   fileInput("predictions", "Choose a predictions file",
                              accept = c(
                                  "text/csv",
                                  "text/comma-separated-values,text/plain",
                                  ".csv")),
-                   fileInput("team2_pred", "Choose predictions file for Team 2",
-                             accept = c(
-                                 "text/csv",
-                                 "text/comma-separated-values,text/plain",
-                                 ".csv")),
-                   fileInput("team3_pred", "Choose predictions file for Team 3",
-                             accept = c(
-                                 "text/csv",
-                                 "text/comma-separated-values,text/plain",
-                                 ".csv")),
-                   fileInput("team4_pred", "Choose predictions file for Team 4",
-                             accept = c(
-                                 "text/csv",
-                                 "text/comma-separated-values,text/plain",
-                                 ".csv")),
-                   fileInput("team5_pred", "Choose predictions file for Team 5",
-                             accept = c(
-                                 "text/csv",
-                                 "text/comma-separated-values,text/plain",
-                                 ".csv")),
-                   checkboxInput("demo", "Demonstration", FALSE),
                    actionButton(
                        inputId = "submit_loc",
                        label = "Submit"
@@ -71,13 +50,7 @@ ui <- fluidPage(theme = shinytheme("united"),
                ),
         column(6,
                DT::dataTableOutput("diffTable"),
-               p(HTML("
-               <p>MAE: Mean absolute error</p>
-               <p>RMSE: Root Mean Squared Error</p>
-               <p>Pearson: Pearson Correlation</p>
-               <p>Spearman: Spearman Correlation</p>
-               <p>Intercept/Beta: Values from a regression for predicting the observed data given the predictions.</p>
-                      "))
+               htmlOutput("tableInfo")
                )
     )
 )
@@ -91,89 +64,50 @@ server <- function(input, output) {
                 
                 if(input$data_type == "Performance"){
                     err_txt = NA # Placeholder for an error message, if needed.
-                    
-                    demo <- input$demo
-                    if(demo == FALSE){
+                        
+                        # Import the ground truth file
                         observations.file <- input$ground_truth
                         observations.dat <- read.csv(observations.file$datapath, header = TRUE)
-                        team_list = NA
                         
-                        if(is.null(input$team1_pred) == FALSE){
-                            team1_predictions.file <- input$team1_pred
-                            team1_predictions.dat <- read.csv(team1_predictions.file$datapath, header = TRUE)
-                            team_list = c(team_list, "team1")
-                        }
+                        # Import the file containing the predictions for each team
+                        predictions.file <- input$predictions
+                        predictions.dat <- read.csv(predictions.file$datapath, header = TRUE)
                         
-                        if(is.null(input$team2_pred) == FALSE){
-                            team2_predictions.file <- input$team2_pred
-                            team2_predictions.dat <- read.csv(team2_predictions.file$datapath, header = TRUE)
-                            team_list = c(team_list, "team2")
-                        }
-                        
-                        if(is.null(input$team3_pred) == FALSE){
-                            team3_predictions.file <- input$team3_pred
-                            team3_predictions.dat <- read.csv(team3_predictions.file$datapath, header = TRUE)
-                            team_list = c(team_list, "team3")
-                        }
-                        
-                        if(is.null(input$team4_pred) == FALSE){
-                            team4_predictions.file <- input$team4_pred
-                            team4_predictions.dat <- read.csv(team4_predictions.file$datapath, header = TRUE)
-                            team_list = c(team_list, "team4")
-                        }
-                        
-                        if(is.null(input$team5_pred) == FALSE){
-                            team5_predictions.file <- input$team5_pred
-                            team5_predictions.dat <- read.csv(team5_predictions.file$datapath, header = TRUE)
-                            team_list = c(team_list, "team5")
-                        }
-                        
-                    } else {
-                        
-                        observations.dat <- simulate_ground_truth()
-                        team1_predictions.dat <- simulate_predicted(observations.dat)
-                        team2_predictions.dat <- simulate_predicted(observations.dat)
-                        team3_predictions.dat <- simulate_predicted(observations.dat)
-                        team4_predictions.dat <- simulate_predicted(observations.dat)
-                        team5_predictions.dat <- simulate_predicted(observations.dat)
-                        team_list = c("team1","team2","team3","team4","team5")
-                    }
+                        # Generate a list of the teams that we have predictions for
+                        team_list = unique(predictions.dat$team)
                     
-                    # Create an empty table to take in the results of the calculations
-                    table_out <- data.frame(array(NA, c(5,7)))
-                    names(table_out) <- c("Team", "MAE", "RMSE", "Pearson", "Spearman", "Intercept", "Beta")
-                    
-                    # List the team names corresponding to the uploaded files
-                    team_list = na.omit(team_list)
+                        # Create an empty table to take in the results of the calculations
+                        table_out <- data.frame(array(NA, c(5,8)))
+                        names(table_out) <- c("Team", "n", "MAE", "RMSE", "Pearson", "Spearman", "Intercept", "Beta")
                     
                     # Loop over the team list and calculate accuracy, updating the results table along the way.
                     for(teamIdx in 1:length(team_list)){
                         # Concatenate the team number and assign it to the predictions variable
-                        predictions.dat <- get(paste(team_list[teamIdx], "_predictions.dat", sep = ""))
+                        predictions.temp <- predictions.dat %>% filter(team == team_list[teamIdx])
                         
                         # Check that there are the right number of columns in the predictions file.
-                        if(ncol(predictions.dat) > 2){
-                            err_txt <- "There are too many columns in the predictions file for Team 1. There should 
-                            only be two columns."
+                        if(ncol(predictions.temp) > 3){
+                            err_txt[1] <- paste("There are too many columns in the predictions file for ", team_list[teamIdx], ".", sep = "")
                         }
                         
                         # Check that there is the number of rows in the predictions file match the number of rows.
-                        if(nrow(observations.dat) != nrow(predictions.dat)){
-                            err_txt <- "The number of data points in the predictions file do not match the number of 
-                            predictions in the ground-truth file for Team 1."
+                        if(nrow(observations.dat) != nrow(predictions.temp)){
+                            err_txt[2] <- paste("The number of data points in the predictions file do not match the number of 
+                            predictions in the ground-truth file for ", team_list[teamIdx] ,".", sep = "")
                         }
                         
                         # Check that there is a prediction for each subject.
-                        if(sum(is.na(match(observations.dat$subj, predictions.dat$subj))) > 0){
-                            err_txt = "There is a discrepancy in the subject numbers in the predictions file and the 
-                            ground-truth file for Team 1."
+                        if(sum(is.na(match(observations.dat$subj, predictions.temp$subj))) > 0){
+                            err_txt[3] = paste("There is a discrepancy in the subject numbers in the predictions file and the 
+                            ground-truth file for ", team_list[teamIdx] ,".", sep = "")
                         }
                         
                         # Combine the Team data with the ground-truth matching by subject number ("subj")
-                        comparison.dat <- left_join(observations.dat, predictions.dat, by ="subj")
+                        comparison.dat <- left_join(observations.dat, predictions.temp, by ="subj")
                         
                         # Update the table with the team's information
                         table_out$Team[teamIdx] = team_list[teamIdx]
+                        table_out$n = length(unique(predictions.temp$subj))
                         table_out$MAE[teamIdx] <- round(mae(comparison.dat$prediction - comparison.dat$observed), 3)
                         table_out$RMSE[teamIdx] <- round(rmse(comparison.dat$prediction - comparison.dat$observed), 3)
                         table_out$Pearson[teamIdx] <- round(cor(comparison.dat$prediction, comparison.dat$observed, method = "pearson"), 3)
@@ -183,6 +117,18 @@ server <- function(input, output) {
                     }
                     print(err_txt)
                     table_out
+                }
+            })
+            
+            tableInfo <- reactive({
+                if(input$data_type == "Performance"){
+                    HTML("
+                    <p>n: Number of unique subject predictions provided by a team</p>
+                    <p>MAE: Mean absolute error</p>
+                    <p>RMSE: Root Mean Squared Error</p>
+                    <p>Pearson: Pearson Correlation</p>
+                    <p>Spearman: Spearman Correlation</p>
+                    <p>Intercept/Beta: Values from a regression for predicting the observed data given the predictions.</p>")
                 }
             })
 
@@ -202,6 +148,7 @@ server <- function(input, output) {
                 
                 class = "display"
             )
+            output$tableInfo = renderText({tableInfo()})
         }
     )
 

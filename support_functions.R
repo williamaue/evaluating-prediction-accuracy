@@ -24,3 +24,12 @@ simulate_predicted <- function(ground_truth_data){
   predicted_data$prediction = rnorm(nrow(predicted_data), mean(ground_truth_data$observed), sd(ground_truth_data$observed))
   return(predicted_data)
 }
+
+simulate_predicted_multipleTeams <- function(num_teams = 5, ground_truth_data){
+  for(i in 1:num_teams){
+    sim_teams.temp = simulate_predicted(ground_truth_data)
+    sim_teams.temp$team = paste("team",i, sep = "")
+    if(i == 1){sim_teams.out = sim_teams.temp} else {sim_teams.out = rbind(sim_teams.out, sim_teams.temp)}
+  }
+  return(sim_teams.out)
+}
