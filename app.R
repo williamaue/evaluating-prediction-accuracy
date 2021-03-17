@@ -1,4 +1,4 @@
-#
+
 # This is a Shiny web application (http://shiny.rstudio.com/) for comparing multiple
 # sets of data to a single ground-truth dataset.
 #
@@ -305,6 +305,7 @@ server <- function(input, output, session) {
                     </thead>
                     <tbody>
                       <tr>
+                        <td></td>
                         <td>Present<br></td>
                         <td>Absent<br></td>
                       </tr>
@@ -322,7 +323,7 @@ server <- function(input, output, session) {
                     </table>
                         
                         <br><p>The formulas used here are:</p>
-                        <p>Balanced Accuracy = (sensitivity+specificity)/2</p>
+                        <p>Balanced Accuracy = (sensitivity+specificity)/2 where sensitivity = A/(A+C) and specificity = D/(B+D)</p>
                         <p>Precision = A/(A+B)</p>
                         <p>Recall = A/(A+C)</p>
                         <p>F1 = (1+beta^2)*precision*recall/((beta^2 * precision)+recall) where beta = 1 for this function.</p>
