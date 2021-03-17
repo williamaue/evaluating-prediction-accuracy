@@ -62,7 +62,8 @@ ui <- fluidPage(theme = shinytheme("united"),
                ),
         column(6,
                withSpinner(DT::dataTableOutput("diffTable"), color = "#080051", type = 6),
-               htmlOutput("tableInfo")
+               htmlOutput("tableInfo"),
+               HTML("<p>Sample data files to test these analyses can be downloaded from <a href='https://github.com/williamaue/evaluating-prediction-accuracy/tree/master/sample-data'>GitHub </a>.</p>"),
                )
     )
 )
@@ -298,13 +299,12 @@ server <- function(input, output, session) {
                     <table>
                     <thead>
                       <tr>
-                        <th></th>
+                        <th>Predicted</th>
                         <th colspan='2'>Reference</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td>Predicted</td>
                         <td>Present<br></td>
                         <td>Absent<br></td>
                       </tr>
