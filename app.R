@@ -14,7 +14,7 @@ library(caret)
 library(e1071)
 
 source("support_functions.R")
-mirna_list.dat <- read_csv("phite_mirna_list.csv")
+mirna_list.dat <- read_csv("mirna_list.csv")
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(theme = shinytheme("united"),
