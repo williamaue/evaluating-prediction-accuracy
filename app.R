@@ -33,8 +33,11 @@ ui <- fluidPage(theme = shinytheme("united"),
                    named <em>team</em>, a subject number named <em>subj</em>, a list of miNRA that are differentially expressed named 
                    <em>mirna</em>, and the direction of differential expression where 1 = upregulated, -1 = downregulated, and 0 = not 
                   differentially expressed.</p>")),
+                   
                    p("When you have uploaded the necessary files, press 'Submit' to run the analysis. Clicking on the 'CSV' button under 
                      the output table will download the results to a CSV file."),
+                   
+                   p("Please note, the differential expression analysis takes a couple of minutes to complete, depending on the amount of data."),
                    selectInput("data_type","Which type of data are being evaluated?", c("Performance","Differential expression")),
                    fileInput("ground_truth", "Choose Ground-Truth File",
                              accept = c(
