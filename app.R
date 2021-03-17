@@ -8,10 +8,10 @@
 
 library(shiny)
 library(shinythemes)
-library(DT)
-library(dplyr)
-library(validate)
+library(tidyverse)
 library(shinycssloaders)
+library(caret)
+library(e1071)
 
 source("support_functions.R")
 mirna_list.dat <- read_csv("phite_mirna_list.csv")
@@ -81,11 +81,11 @@ server <- function(input, output, session) {
                         
                         # Import the ground truth file
                         observations.file <- input$ground_truth
-                        observations.dat <- read.csv(observations.file$datapath, header = TRUE)
+                        observations.dat <- read_csv(observations.file$datapath) #, header = TRUE)
                         
                         # Import the file containing the predictions for each team
                         predictions.file <- input$predictions
-                        predictions.dat <- read.csv(predictions.file$datapath, header = TRUE)
+                        predictions.dat <- read_csv(predictions.file$datapath) #, header = TRUE)
                         
                         # Generate a list of the teams that we have predictions for
                         team_list = unique(predictions.dat$team)
@@ -135,11 +135,11 @@ server <- function(input, output, session) {
                 } else if(input$data_type == "Differential expression") {
                     # Import the ground truth file
                     observations.file <- input$ground_truth
-                    observations.dat <- read.csv(observations.file$datapath, header = TRUE)
+                    observations.dat <- read_csv(observations.file$datapath) #, header = TRUE)
                     
                     # Import the file containing the predictions for each team
                     predictions.file <- input$predictions
-                    predictions.dat <- read.csv(predictions.file$datapath, header = TRUE)
+                    predictions.dat <- read_csv(predictions.file$datapath) #, header = TRUE)
                     
                     # Generate a list of the teams that we have predictions for
                     team_list = unique(predictions.dat$team)
@@ -278,7 +278,7 @@ server <- function(input, output, session) {
             tableInfo <- reactive({
                 if(input$data_type == "Performance"){
                     HTML("
-                    <p>n: Number of unique subject predictions provided by a team</p>
+                    <br><p>n: Number of unique subject predictions provided by a team</p>
                     <p>MAE: Mean absolute error</p>
                     <p>RMSE: Root Mean Squared Error</p>
                     <p>Pearson: Pearson Correlation</p>
@@ -286,7 +286,7 @@ server <- function(input, output, session) {
                     <p>Intercept/Beta: Values from a regression for predicting the observed data given the predictions.</p>")
                 } else if(input$data_type == "Differential expression"){
                     HTML("
-                    <p>Performance metrics are calculated using the <em>confusionMatrix</em> function in the Caret R package 
+                    <br><p>Performance metrics are calculated using the <em>confusionMatrix</em> function in the Caret R package 
                     (<a href='https://topepo.github.io/caret'>https://topepo.github.io/caret</a>). Suppose a 2x2 table with notation:</p>
                     <style>
                     table, th, td {
