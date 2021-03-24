@@ -29,10 +29,12 @@ ui <- fluidPage(theme = shinytheme("united"),
                    <p>For performance predictions, each file should be a .CSV file containing a column with a team name in a column 
                    named <em>team</em>, a subject number named <em>subj</em>, and the corresponding prediction named <em>prediction</em>.</p>
                   
-                  <p>For differential expression, each file should be a .CSV file containing a column with a a team name in a column 
-                   named <em>team</em>, a subject number named <em>subj</em>, a list of miNRA that are differentially expressed named 
-                   <em>mirna</em>, and the direction of differential expression where 1 = upregulated, -1 = downregulated, and 0 = not 
-                  differentially expressed.</p>")),
+                  <p>For differential expression, each file should be a .CSV file containing the a team name in a column 
+                   named <em>team</em>, a subject number column named <em>subj</em>, a column of miNRA labels named <em>mirna</em>, 
+                   and the nature of the differential expression in a column called <em>expressed</em>. The predictions can be either binary 
+                   1 = differentially expressed or 0 = not differentially expressed, or directional where  1 = upregulated, -1 = downregulated, 
+                   and 0 = not differentially expressed. Any miRNA not listed in the prediction or ground truth files are assumed to be not 
+                          differentially expressed.</p>")),
                    
                    p("When you have uploaded the necessary files, press 'Submit' to run the analysis. Clicking on the 'CSV' button under 
                      the output table will download the results to a CSV file."),
@@ -49,6 +51,9 @@ ui <- fluidPage(theme = shinytheme("united"),
                                  "text/csv",
                                  "text/comma-separated-values,text/plain",
                                  ".csv")),
+                   p(HTML("For a differential expression analysis, does the <em>expressed</em> column include directionality of the 
+                          differential expression where  1 = upregulated, -1 = downregulated, and 0 = not differentially expressed?")),
+                   checkboxInput("isMulticlass","Yes, it is directional.", FALSE),
                    actionButton(
                        inputId = "submit_loc",
                        label = "Submit"
@@ -136,7 +141,7 @@ server <- function(input, output, session) {
                     # Import the ground truth file
                     observations.file <- input$ground_truth
                     observations.dat <- read_csv(observations.file$datapath) #, header = TRUE)
-                    
+
                     # Import the file containing the predictions for each team
                     predictions.file <- input$predictions
                     predictions.dat <- read_csv(predictions.file$datapath) #, header = TRUE)
@@ -145,13 +150,14 @@ server <- function(input, output, session) {
                     team_list = unique(predictions.dat$team)
 
                     for(teamIdx in 1:length(team_list)){
+                        print(paste("Starting ", team_list[teamIdx]))
                         # Select the specific team to analyze
                         team_dat.temp = predictions.dat %>%
                             filter(team == team_list[teamIdx])
                         # Select the subject within the team to analyze
                         subject_list = unique(team_dat.temp$subject)
                         for(subjIdx in 1:length(subject_list)){
-                            
+                            print(paste("Starting subject ", subject_list[subjIdx]))
                             # Pull out the ground truth data for the subject
                             observations_subject.temp = observations.dat %>%
                                 filter(subject == subject_list[subjIdx])
@@ -162,13 +168,15 @@ server <- function(input, output, session) {
                             observations_subject_expanded.temp <- tibble(
                                 subject = rep(subject_list[subjIdx], nrow(mirna_list.dat)),
                                 mirna = mirna_list.dat$mirna_list,
-                                expressed_pred = rep(0, nrow(mirna_list.dat)),
-                                direction_pred = rep(0, nrow(mirna_list.dat))
+                                expressed_obs = rep(0, nrow(mirna_list.dat)),
+                                # direction_obs = rep(0, nrow(mirna_list.dat)),
                             )
                             
                             # Fill in the expanded array with the ground truth
-                            observations_subject_expanded.temp[match(observations_subject.temp$mirna, observations_subject_expanded.temp$mirna),] = 
-                                observations_subject.temp
+                            observations_subject_expanded.temp[match(
+                                observations_subject.temp$mirna, 
+                                observations_subject_expanded.temp$mirna), 
+                                "expressed_obs"] = observations_subject.temp$expressed
                             
                             # Pull out the predictions for the subject
                             pred_subj_dat.temp = team_dat.temp %>%
@@ -181,13 +189,15 @@ server <- function(input, output, session) {
                                 subject = rep(subject_list[subjIdx], nrow(mirna_list.dat)),
                                 team = team_list[teamIdx],
                                 mirna = mirna_list.dat$mirna_list,
-                                expressed_obs = rep(0, nrow(mirna_list.dat)),
-                                direction_obs = rep(0, nrow(mirna_list.dat))
+                                # expressed_obs = rep(0, nrow(mirna_list.dat))
+                                expressed_pred = rep(0, nrow(mirna_list.dat))
                             )
                             
                             # Fill in the expanded array with the team's prediction
-                            pred_subj_dat_expanded.temp[match(pred_subj_dat.temp$mirna, pred_subj_dat_expanded.temp$mirna),] = 
-                                pred_subj_dat.temp
+                            pred_subj_dat_expanded.temp[
+                                match(pred_subj_dat.temp$mirna, 
+                                      pred_subj_dat_expanded.temp$mirna), "expressed_pred"] = 
+                                pred_subj_dat.temp$expressed
                             
                             # Combine the two objects by subject number and mirna
                             pred_subj_dat_expanded_combined = left_join(
@@ -199,24 +209,42 @@ server <- function(input, output, session) {
                             
                             # Convert the observed and predicted variables for direction in to factors and label the factor levels. 
                             # This is a necessary step for Caret to be able to calculate the confusion matrix
-                            pred_subj_dat_expanded_combined_caret = pred_subj_dat_expanded_combined %>%
-                                mutate(
-                                    direction_obs_f = factor(
-                                        direction_obs, 
-                                        levels = c(-1, 0, 1), 
-                                        labels = c("down_regulated", "not_diffExp","up_regulated")
+                            if(input$isMulticlass == TRUE){
+                                pred_subj_dat_expanded_combined_caret = pred_subj_dat_expanded_combined %>%
+                                    mutate(
+                                        expressed_obs_f = factor(
+                                            expressed_obs,
+                                            levels = c(-1, 0, 1),
+                                            labels = c("down_regulated", "not_diffExp","up_regulated")
                                         ),
-                                    direction_pred_f = factor(
-                                        direction_pred, 
-                                        levels = c(-1, 0, 1), 
-                                        labels = c("down_regulated", "not_diffExp","up_regulated")
+                                        expressed_pred_f = factor(
+                                            expressed_pred,
+                                            levels = c(-1, 0, 1),
+                                            labels = c("down_regulated", "not_diffExp","up_regulated")
                                         )
-                                )
-                            
+                                    )
+                            } else if(input$isMulticlass == FALSE){
+                                pred_subj_dat_expanded_combined_caret = pred_subj_dat_expanded_combined %>%
+                                    mutate(
+                                        expressed_obs_f = factor(
+                                            expressed_obs,
+                                            levels = c(0, 1),
+                                            labels = c("not_diffExp","diffExp")
+                                        ),
+                                        expressed_pred_f = factor(
+                                            expressed_pred,
+                                            levels = c(0, 1),
+                                            labels = c("not_diffExp","diffExp")
+                                        )
+                                    )
+                            }
+
+                            if(input$isMulticlass == TRUE){caretPositive = NULL} else if(input$isMulticlass == FALSE){caretPositive = "diffExp"}
                             results_confusionMatrix.out = 
                                 confusionMatrix(
-                                    data = pred_subj_dat_expanded_combined_caret$direction_pred_f,
-                                    reference = pred_subj_dat_expanded_combined_caret$direction_obs_f
+                                    data = pred_subj_dat_expanded_combined_caret$expressed_pred_f,
+                                    reference = pred_subj_dat_expanded_combined_caret$expressed_obs_f,
+                                    positive = caretPositive
                                 )
                             
                             # Overall results
@@ -229,12 +257,22 @@ server <- function(input, output, session) {
                             # Class-level results
                             results_byClass.temp = as_tibble(results_confusionMatrix.out$byClass, rownames = "class_label")
                             results_byClass.temp["class_label"] = str_replace_all(results_byClass.temp$class_label, "Class: ", "")
-                            results_byClass_wide.temp = results_byClass.temp %>%
-                                pivot_wider(
-                                    names_from = class_label,
-                                    values_from = Sensitivity:`Balanced Accuracy`,
-                                    names_sep = "."
-                                )
+                            if(input$isMulticlass == TRUE){
+                                results_byClass_wide.temp = results_byClass.temp %>%
+                                    pivot_wider(
+                                        names_from = class_label,
+                                        values_from = Sensitivity:`Balanced Accuracy`,
+                                        names_sep = "."
+                                    )
+                                
+                            } else if(input$isMulticlass == FALSE){
+                                results_byClass_wide.temp = results_byClass.temp %>%
+                                    pivot_wider(
+                                        names_from = class_label,
+                                        values_from = value,
+                                        names_sep = "."
+                                    )
+                            }
                             
                             results_byClass_wide.temp = cbind(
                                 tibble(
@@ -253,24 +291,49 @@ server <- function(input, output, session) {
                                 results_byClass_wide.dat = rbind(results_byClass_wide.dat, results_byClass_wide.temp)
                                 results_overall.dat = rbind(results_overall.dat, results_overall.temp)
                             }
+                            print(paste("Finished subject ", subject_list[subjIdx]))
                         }
+                        print(paste("Finished ", team_list[teamIdx]))
                     }
-                    results_byClass.sum = results_byClass_wide.dat %>%
-                        group_by(team) %>%
-                        summarize(across(`Sensitivity.down_regulated`:`Balanced Accuracy.up_regulated`, mean)) %>%
-                        select("team",
-                               "Precision.down_regulated","Precision.not_diffExp","Precision.up_regulated",
-                               "Recall.down_regulated","Recall.not_diffExp", "Recall.up_regulated",
-                               "Balanced Accuracy.down_regulated","Balanced Accuracy.not_diffExp","Balanced Accuracy.up_regulated",
-                               "F1.down_regulated","F1.not_diffExp","F1.up_regulated")
                     
-                    results_overall.sum = results_overall.dat %>%
-                        group_by(team) %>%
-                        summarize(across(`Accuracy`:`McnemarPValue`, mean)) %>%
-                        select("team","Accuracy")
-                    table_out = left_join(results_overall.sum, results_byClass.sum, by = "team") %>%
-                        rename(Accuracy.overall = "Accuracy") %>%
-                        mutate(across(Accuracy.overall:F1.up_regulated, round, 3))
+                    if(input$isMulticlass == TRUE){
+                        
+                        results_byClass.sum = results_byClass_wide.dat %>%
+                            group_by(team) %>%
+                            summarize(across(`Sensitivity.down_regulated`:`Balanced Accuracy.up_regulated`, mean)) %>%
+                            select("team",
+                                   # "Precision.down_regulated","Precision.not_diffExp","Precision.up_regulated",
+                                   "Sensitivity.down_regulated","Sensitivity.not_diffExp", "Sensitivity.up_regulated",
+                                   "Specificity.down_regulated","Specificity.not_diffExp","Specificity.up_regulated",
+                                   "Balanced Accuracy.down_regulated","Balanced Accuracy.not_diffExp","Balanced Accuracy.up_regulated",
+                                   "F1.down_regulated","F1.not_diffExp","F1.up_regulated")
+                        
+                        results_overall.sum = results_overall.dat %>%
+                            group_by(team) %>%
+                            summarize(across(`Accuracy`:`McnemarPValue`, mean)) %>%
+                            select("team","Accuracy")
+                        
+                        table_out = left_join(results_overall.sum, results_byClass.sum, by = "team") %>%
+                            rename(Accuracy.overall = "Accuracy") %>%
+                            mutate(across(Accuracy.overall:F1.up_regulated, round, 3))
+                   
+                         } else if(input$isMulticlass == FALSE){
+                             
+                        results_byClass.sum = results_byClass_wide.dat %>%
+                            group_by(team) %>%
+                            summarize(across(`Sensitivity`:`Balanced Accuracy`, mean, na.rm = TRUE)) %>%
+                            select("team", "Sensitivity","Specificity","Balanced Accuracy","F1")
+                        
+                        results_overall.sum = results_overall.dat %>%
+                            group_by(team) %>%
+                            summarize(across(`Accuracy`:`McnemarPValue`, mean, na.rm = TRUE)) %>%
+                            select("team","Accuracy")
+                        
+                        table_out = left_join(results_overall.sum, results_byClass.sum, by = "team") %>%
+                            rename(Accuracy.overall = "Accuracy") %>%
+                            mutate(across(Accuracy.overall:F1, round, 3))
+                        
+                    }
                     table_out
                 }
             })
@@ -321,25 +384,17 @@ server <- function(input, output, session) {
                       </tr>
                     </tbody>
                     </table>
-                        
                         <br><p>The formulas used here are:</p>
-                        <p>Balanced Accuracy = (sensitivity+specificity)/2 where sensitivity = A/(A+C) and specificity = D/(B+D)</p>
-                        <p>Precision = A/(A+B)</p>
-                        <p>Recall = A/(A+C)</p>
-                        <p>F1 = (1+beta^2)*precision*recall/((beta^2 * precision)+recall) where beta = 1 for this function.</p>
+                        <p>Sensitivity/Recall = A/(A+C)</p>
+                        <p>Specificity = D/(B+D)</p>
+                        <p>Balanced Accuracy = (sensitivity+specificity)/2</p>
+                        <p>F1 = (1+beta^2)*precision*recall/((beta^2 * precision)+recall) where beta = 1 and precision = A/(A+B).</p>
                     ")
-                    # <p>Sensitivity = A/(A+C)</p>
-                    # <p>Specificity = D/(B+D)</p>
-                    # <p>Prevalence = (A+C)/(A+B+C+D)</p>
-                    # <p>PPV = (sensitivity * prevalence)/((sensitivity*prevalence) + ((1-specificity)*(1-prevalence)))</p>
-                    # <p>NPV = (specificity * (1-prevalence))/(((1-sensitivity)*prevalence) + ((specificity)*(1-prevalence)))</p>
-                    # <p>Detection Rate = A/(A+B+C+D)</p>
-                    # <p>Detection Prevalence = (A+B)/(A+B+C+D)</p>
                 }
             })
 
             output$diffTable = DT::renderDataTable({
-                diffVals() 
+                diffVals()
                 },
                 extensions = 'Buttons',
                 
@@ -350,6 +405,7 @@ server <- function(input, output, session) {
                     autoWidth = TRUE,
                     ordering = TRUE,
                     dom = 'tB',
+                    pageLength = 30,
                     buttons = c('csv')
                 ),
                 class = "display")
@@ -357,10 +413,6 @@ server <- function(input, output, session) {
             output$tableInfo = renderText({
                 tableInfo()
                 })
-            
-            # output$spinner <- renderUI({
-            #     withSpinner(dataTableOutput("diffTable"), color = "#080051")
-            # })
         }
     )}
 
