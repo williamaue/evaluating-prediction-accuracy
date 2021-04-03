@@ -21,21 +21,10 @@ ui <- fluidPage(theme = shinytheme("united"),
 
     # Application title
     titlePanel("Evaluating TAILOR Prediction Accuracy"),
-    fluidRow(
-        column(3,
-               wellPanel(
+    fluidRow(style='padding-left:25px; padding-right:25px',
+        sidebarLayout(
+               sidebarPanel(width = 4, 
                    h4("File Inputs"),
-                   p(HTML("<p>Select the input files.</p>
-                   <p>For performance predictions, each file should be a .CSV file containing a column with a team name in a column 
-                   named <em>team</em>, a subject number named <em>subj</em>, and the corresponding prediction named <em>prediction</em>.</p>
-                  
-                  <p>For differential expression, each file should be a .CSV file containing the a team name in a column 
-                   named <em>team</em>, a subject number column named <em>subj</em>, a column of miNRA labels named <em>mirna</em>, 
-                   and the nature of the differential expression in a column called <em>expressed</em>. The predictions can be either binary 
-                   1 = differentially expressed or 0 = not differentially expressed, or directional where  1 = upregulated, -1 = downregulated, 
-                   and 0 = not differentially expressed. Any miRNA not listed in the prediction or ground truth files are assumed to be not 
-                          differentially expressed.</p>")),
-                   
                    p("When you have uploaded the necessary files, press 'Submit' to run the analysis. Clicking on the 'CSV' button under 
                      the output table will download the results to a CSV file."),
                    
@@ -63,14 +52,28 @@ ui <- fluidPage(theme = shinytheme("united"),
                    Defense Advanced Research Projects Agency (DARPA) under agreement number HR00111990066.</p>")),
                    p(HTML("<p style='font-size:11px'>The source code for this Shiny application is available on 
                           <a href='https://github.com/williamaue/evaluating-prediction-accuracy'>GitHub</a>.</p>"))
-                   )
-               ),
-        column(6,
-               withSpinner(DT::dataTableOutput("diffTable"), color = "#080051", type = 6),
-               htmlOutput("tableInfo"),
-               HTML("<p>Sample data files to test these analyses can be downloaded from <a href='https://github.com/williamaue/evaluating-prediction-accuracy/tree/master/sample-data'>GitHub </a>.</p>"),
+                   ),
+        mainPanel(width = 8,
+            tabsetPanel(
+                id = "tabs",
+                type = "tabs",
+                tabPanel("Instructions",
+                         p(HTML("
+                         <h3>Performance predictions</h3>
+                         <h4 style='padding-right: 20px; padding-bottom: 20px; padding-left: 20px'><p>For performance predictions, each file should be a .CSV file. The <b>ground truth</b> file should contain a column named <em>subj</em> with a subject number and a column with the subject's performance called <em>observed</em>. The <b>predictions</b> file should contain a column named <em>team</em> with the team name team, a column named <em>subj</em> containing a number, and a column named <em>prediction</em> 
+                         containing subject's predicted performance.</p></h4>
+                         
+                         <h3>Differential Expression</h3>
+                         <h4 style='padding-right: 20px; padding-bottom: 20px; padding-left: 20px'><p>For differential expression, each file should be a .CSV file containing the a team name in a column named <em>team</em>, a subject number column named <em>subj</em>, a column of miNRA labels named <em>mirna</em>, and the nature of the differential expression in a column called <em>expressed</em>. The predictions can be either binary 1 = differentially expressed or 0 = not differentially expressed, or directional where  1 = upregulated, -1 = downregulated, and 0 = not differentially expressed. Any miRNA not listed in the prediction or ground truth files are assumed to be not differentially expressed.</p></h4>"))),
+                tabPanel("Analysis",
+                         withSpinner(DT::dataTableOutput("diffTable"), color = "#080051", type = 6),
+                         htmlOutput("tableInfo"),
+                         HTML("<p>Sample data files to test these analyses can be downloaded from <a href='https://github.com/williamaue/evaluating-prediction-accuracy/tree/master/sample-data'>GitHub </a>.</p>")
+                         )
                )
+        )
     )
+)
 )
 
 
@@ -79,6 +82,10 @@ server <- function(input, output, session) {
     observeEvent(
         eventExpr = input[["submit_loc"]],
         handlerExpr = {
+            updateTabsetPanel(session, "tabs",
+                              selected = "Analysis"
+            )
+            
             diffVals <- reactive({
                 
                 if(input$data_type == "Performance"){
