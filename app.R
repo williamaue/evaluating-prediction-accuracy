@@ -93,11 +93,19 @@ server <- function(input, output, session) {
                         
                         # Import the ground truth file
                         observations.file <- input$ground_truth
-                        observations.dat <- read_csv(observations.file$datapath) #, header = TRUE)
+                        observations.dat <- read_csv(observations.file$datapath)
+                        observations.dat <- observations.dat %>% # Convert the subject number to a string
+                            mutate(
+                                subj = as.character(subj)
+                            )
                         
                         # Import the file containing the predictions for each team
                         predictions.file <- input$predictions
-                        predictions.dat <- read_csv(predictions.file$datapath) #, header = TRUE)
+                        predictions.dat <- read_csv(predictions.file$datapath)
+                        predictions.dat <- predictions.dat %>% # Convert the subject number to a string
+                            mutate(
+                                subj = as.character(subj)
+                            )
                         
                         # Generate a list of the teams that we have predictions for
                         team_list = unique(predictions.dat$team)
@@ -136,8 +144,8 @@ server <- function(input, output, session) {
                         table_out$n = length(unique(predictions.temp$subj))
                         table_out$MAE[teamIdx] <- round(mae(comparison.dat$prediction - comparison.dat$observed), 3)
                         table_out$RMSE[teamIdx] <- round(rmse(comparison.dat$prediction - comparison.dat$observed), 3)
-                        table_out$Pearson[teamIdx] <- round(cor(comparison.dat$prediction, comparison.dat$observed, method = "pearson", use = "complete.obs"), 3)
-                        table_out$Spearman[teamIdx] <- round(cor(comparison.dat$prediction, comparison.dat$observed, method = "spearman", use = "complete.obs"), 3)
+                        table_out$Pearson[teamIdx] <- round(cor(comparison.dat$prediction, comparison.dat$observed, method = "pearson", use = "pairwise.complete.obs"), 3)
+                        table_out$Spearman[teamIdx] <- round(cor(comparison.dat$prediction, comparison.dat$observed, method = "spearman", use = "pairwise.complete.obs"), 3)
                         table_out$Intercept[teamIdx] <- round(coef(lm(observed ~ prediction, data = comparison.dat))["(Intercept)"], 3)
                         table_out$Beta[teamIdx] <- round(coef(lm(observed ~ prediction, data = comparison.dat))["prediction"], 3)
                     }
@@ -148,10 +156,18 @@ server <- function(input, output, session) {
                     # Import the ground truth file
                     observations.file <- input$ground_truth
                     observations.dat <- read_csv(observations.file$datapath) #, header = TRUE)
+                    observations.dat <- observations.dat %>%
+                        mutate(
+                            subj = as.character(subj)
+                        )
 
                     # Import the file containing the predictions for each team
                     predictions.file <- input$predictions
                     predictions.dat <- read_csv(predictions.file$datapath) #, header = TRUE)
+                    predictions.dat <- predictions.dat %>%
+                        mutate(
+                            subj = as.character(subj)
+                        )
                     
                     # Generate a list of the teams that we have predictions for
                     team_list = unique(predictions.dat$team)
