@@ -141,7 +141,7 @@ server <- function(input, output, session) {
                         
                         # Update the table with the team's information
                         table_out$Team[teamIdx] = team_list[teamIdx]
-                        table_out$n = length(unique(predictions.temp$subj))
+                        table_out$n[teamIdx] = length(unique(predictions.temp$subj))
                         table_out$MAE[teamIdx] <- round(mae(comparison.dat$prediction - comparison.dat$observed), 3)
                         table_out$RMSE[teamIdx] <- round(rmse(comparison.dat$prediction - comparison.dat$observed), 3)
                         table_out$Pearson[teamIdx] <- round(cor(comparison.dat$prediction, comparison.dat$observed, method = "pearson", use = "pairwise.complete.obs"), 3)
